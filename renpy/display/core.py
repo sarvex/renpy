@@ -176,7 +176,28 @@ class absolute(float):
     """
     This represents an absolute float coordinate.
     """
-    __slots__ = [ ]
+    __slots__ = ()
+
+    @staticmethod
+    def compute_native(value, room):
+        """
+        Returns an absolute number of pixels, from a coordinate expressed in
+        one of the many supported coordinate systems.
+        """
+        if isinstance(value, (int, absolute)):
+            return value
+        if isinstance(value, float):
+            return value * room
+
+        raise TypeError("Value {!r} is not recognized as a position.".format(value))
+
+    @classmethod
+    def compute(cls, value, room):
+        """
+        Returns an absolute instance from a coordinate expressed in one of the
+        many supported coordinate systems.
+        """
+        return cls(cls.compute_native(value, room))
 
 
 def place(width, height, sw, sh, placement):

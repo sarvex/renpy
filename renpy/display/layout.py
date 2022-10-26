@@ -30,17 +30,7 @@ import pygame_sdl2 as pygame
 import renpy
 from renpy.display.render import render, Render
 
-
-def scale(num, base):
-    """
-    If num is a float, multiplies it by base and returns that. Otherwise,
-    returns num unchanged.
-    """
-
-    if type(num) is float:
-        return num * base
-    else:
-        return num
+scale = renpy.display.core.absolute.compute_native
 
 
 def xyminimums(style, width, height):
@@ -58,7 +48,7 @@ def xyminimums(style, width, height):
         if (type(xmaximum) is float) and xmaximum and renpy.config.adjust_minimums:
             xminimum = xminimum / xmaximum
 
-        xminimum = xminimum * width
+    xminimum = scale(xminimum, width)
 
     if type(yminimum) is float:
         ymaximum = style.ymaximum
@@ -66,7 +56,7 @@ def xyminimums(style, width, height):
         if (type(ymaximum) is float) and ymaximum and renpy.config.adjust_minimums:
             yminimum = yminimum / ymaximum
 
-        yminimum = yminimum * height
+    yminimum = scale(yminimum, height)
 
     return xminimum, yminimum
 

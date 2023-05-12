@@ -47,10 +47,7 @@ import renpy
 class StoreDeleted(object):
 
     def __reduce__(self):
-        if PY2:
-            return b"deleted"
-        else:
-            return "deleted"
+        return b"deleted" if PY2 else "deleted"
 
 
 deleted = StoreDeleted()
@@ -476,18 +473,9 @@ class RollbackLog(renpy.object.Object):
         if version < 4:
             self.retain_after_load_flag = False
 
-        if version < 5:
-
-            # We changed what the rollback limit represents, so recompute it
-            # here.
-            if self.rollback_limit:
-                nrbl = 0
-
-                for rb in self.log[-self.rollback_limit:]:
-                    if rb.hard_checkpoint:
-                        nrbl += 1
-
-                self.rollback_limit = nrbl
+        if version < 5 and self.rollback_limit:
+            nrbl = sum(1 for rb in self.log[-self.rollback_limit:] if rb.hard_checkpoint)
+            self.rollback_limit = nrbl
 
     def begin(self, force=False):
         """
@@ -511,11 +499,8 @@ class RollbackLog(renpy.object.Object):
         elif self.did_interaction:
             ignore = False
         elif self.current is not None:
-            if self.current.checkpoint:
+            if self.current.checkpoint or self.current.retain_after_load:
                 ignore = False
-            elif self.current.retain_after_load:
-                ignore = False
-
         if ignore:
             return
 
@@ -531,9 +516,11 @@ class RollbackLog(renpy.object.Object):
             self.log.pop(0)
 
         # check for the end of fixed rollback
-        if len(self.log) >= 2:
-            if self.log[-2].context.current == self.fixed_rollback_boundary:
-                self.rollback_is_fixed = False
+        if (
+            len(self.log) >= 2
+            and self.log[-2].context.current == self.fixed_rollback_boundary
+        ):
+            self.rollback_is_fixed = False
 
         # A lack of rollback data in fixed rollback mode ends rollback.
         if self.rollback_is_fixed and not self.forward:
@@ -581,8 +568,7 @@ class RollbackLog(renpy.object.Object):
         # Update self.current.stores with the changes from each store.
         # Also updates .ever_been_changed.
         for name, sd in renpy.python.store_dicts.items():
-            delta = sd.get_changes(begin)
-            if delta:
+            if delta := sd.get_changes(begin):
                 self.current.stores[name], self.current.delta_ebc[name] = delta
 
         # Update the list of mutated objects and what we need to do to
@@ -626,11 +612,7 @@ class RollbackLog(renpy.object.Object):
 
         for store_name, sd in renpy.python.store_dicts.items():
             for name in sd.ever_been_changed:
-                if name in sd:
-                    rv[store_name + "." + name] = sd[name]
-                else:
-                    rv[store_name + "." + name] = deleted
-
+                rv[f"{store_name}.{name}"] = sd[name] if name in sd else deleted
         for i in reversed(renpy.game.contexts[1:]):
             i.pop_dynamic_roots(rv)
 
@@ -665,10 +647,7 @@ class RollbackLog(renpy.object.Object):
         reachable.clear()
 
     def in_rollback(self):
-        if self.forward:
-            return True
-        else:
-            return False
+        return bool(self.forward)
 
     def in_fixed_rollback(self):
         return self.rollback_is_fixed
@@ -881,9 +860,10 @@ class RollbackLog(renpy.object.Object):
             if rb.hard_checkpoint or (on_load and rb.checkpoint):
                 checkpoints -= 1
 
-            if checkpoints <= 0:
-                if renpy.game.script.has_label(rb.context.current):
-                    break
+            if checkpoints <= 0 and renpy.game.script.has_label(
+                rb.context.current
+            ):
+                break
 
         else:
             # Otherwise, just give up.
@@ -925,7 +905,7 @@ class RollbackLog(renpy.object.Object):
         else:
             replace_context = True
             other_contexts = renpy.game.contexts[1:]
-            renpy.game.contexts = renpy.game.contexts[0:1]
+            renpy.game.contexts = renpy.game.contexts[:1]
 
         if on_load and revlog[-1].retain_after_load:
             retained = revlog.pop()
@@ -984,13 +964,13 @@ class RollbackLog(renpy.object.Object):
         self.mutated.clear()
         renpy.python.begin_stores()
 
+        self.current = Rollback()
         # Restart the context or the top context.
         if replace_context:
 
             if force_checkpoint:
                 renpy.game.contexts[0].force_checkpoint = True
 
-            self.current = Rollback()
             self.current.context = renpy.game.contexts[0].rollback_copy()
 
             if self.log is not None:
@@ -1000,7 +980,6 @@ class RollbackLog(renpy.object.Object):
 
         else:
 
-            self.current = Rollback()
             self.current.context = renpy.game.context().rollback_copy()
 
             if self.log is not None:
@@ -1097,9 +1076,10 @@ class RollbackLog(renpy.object.Object):
 
         for i in reversed(self.log):
 
-            if i.identifier is not None:
-                if renpy.game.script.has_label(i.context.current):
-                    self.identifier_cache[i.identifier] = checkpoints
+            if i.identifier is not None and renpy.game.script.has_label(
+                i.context.current
+            ):
+                self.identifier_cache[i.identifier] = checkpoints
 
             if i.hard_checkpoint:
                 checkpoints += 1

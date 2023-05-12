@@ -165,11 +165,7 @@ class CompressedList(object):
         return self.pre + new[self.start:self.end] + self.post
 
     def __repr__(self):
-        return "<CompressedList {} [{}:{}] {}>".format(
-            self.pre,
-            self.start,
-            self.end,
-            self.post)
+        return f"<CompressedList {self.pre} [{self.start}:{self.end}] {self.post}>"
 
 
 class RevertableList(list):
@@ -216,14 +212,13 @@ class RevertableList(list):
     def __getitem__(self, index):
         rv = list.__getitem__(self, index)
 
-        if isinstance(index, slice):
-            return RevertableList(rv)
-        else:
-            return rv
+        return RevertableList(rv) if isinstance(index, slice) else rv
 
     def __mul__(self, other):
         if not isinstance(other, int):
-            raise TypeError("can't multiply sequence by non-int of type '{}'.".format(type(other).__name__))
+            raise TypeError(
+                f"can't multiply sequence by non-int of type '{type(other).__name__}'."
+            )
 
         return RevertableList(list.__mul__(self, other))
 
@@ -379,8 +374,7 @@ class RevertableSet(set):
             self.update(state)
 
     def __getstate__(self):
-        rv = ({ i : True for i in self},)
-        return rv
+        return ({ i : True for i in self},)
 
     # Required to ensure that getstate and setstate are called.
     __reduce__ = object.__reduce__
@@ -414,10 +408,7 @@ class RevertableSet(set):
         @_method_wrapper(method)
         def newmethod(*args, **kwargs):
             rv = method(*args, **kwargs) # type: ignore
-            if isinstance(rv, set):
-                return RevertableSet(rv)
-            else:
-                return rv
+            return RevertableSet(rv) if isinstance(rv, set) else rv
 
         return newmethod
 
@@ -567,11 +558,7 @@ class DetRandom(random.Random):
 
     def random(self):
 
-        if self.stack:
-            rv = self.stack.pop()
-        else:
-            rv = super(DetRandom, self).random()
-
+        rv = self.stack.pop() if self.stack else super(DetRandom, self).random()
         log = renpy.game.log
 
         if log.current is not None:

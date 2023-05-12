@@ -13,10 +13,7 @@ class Editor(renpy.editor.Editor):
         Returns the path to the code executable.
         """
 
-        system = __file__.endswith(" (System).edit.py")
-
-        if system:
-
+        if system := __file__.endswith(" (System).edit.py"):
             if "RENPY_VSCODE" in os.environ:
                 return os.environ["RENPY_VSCODE"]
 
@@ -29,13 +26,20 @@ class Editor(renpy.editor.Editor):
             return "code"
 
         else:
-
             RENPY_VSCODE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "vscode"))
 
             if renpy.windows:
-                code = os.path.join(RENPY_VSCODE, "VSCode-win32-x64", "bin", "code.cmd")
+                return os.path.join(RENPY_VSCODE, "VSCode-win32-x64", "bin", "code.cmd")
             elif renpy.macintosh:
-                code = os.path.join(RENPY_VSCODE, "Visual Studio Code.app", "Contents", "Resources", "app", "bin", "code")
+                return os.path.join(
+                    RENPY_VSCODE,
+                    "Visual Studio Code.app",
+                    "Contents",
+                    "Resources",
+                    "app",
+                    "bin",
+                    "code",
+                )
             elif renpy.linux:
                 if renpy.arch == "aarch64":
                     arch = "arm64"
@@ -44,15 +48,13 @@ class Editor(renpy.editor.Editor):
                 else:
                     arch = "x86_64"
 
-                code = os.path.join(RENPY_VSCODE, "VSCode-linux-" + arch, "bin", "code")
+                return os.path.join(RENPY_VSCODE, f"VSCode-linux-{arch}", "bin", "code")
             else:
-                code = "code"
-
-            return code
+                return "code"
 
     def open(self, filename, line=None, **kwargs):
         if line:
-            filename = "{}:{}".format(filename, line)
+            filename = f"{filename}:{line}"
         self.args.append(filename)
 
     def open_project(self, project):

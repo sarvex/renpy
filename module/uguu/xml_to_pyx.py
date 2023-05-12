@@ -81,7 +81,7 @@ def python_type(t):
     Converts the OpenGL type t into a Python type.
     """
 
-    if not "*" in t:
+    if "*" not in t:
         return t
 
     print("Weird type", t)
@@ -103,18 +103,17 @@ class Command:
         self.aliases = set()
 
     def format_param_list(self):
-        l = [ ]
-
-        for name, type_ in zip(self.parameters, self.parameter_types):
-            l.append(f"{type_} {name}")
-
+        l = [
+            f"{type_} {name}"
+            for name, type_ in zip(self.parameters, self.parameter_types)
+        ]
         return "(" + ", ".join(l) + ")"
 
     def format_proxy_call(self):
         return "(" + ", ".join(self.parameters) + ")"
 
     def typedef(self, name):
-        return "ctypedef {} (__stdcall *{}){} nogil".format(self.return_type, name, self.format_param_list())
+        return f"ctypedef {self.return_type} (__stdcall *{name}){self.format_param_list()} nogil"
 
 
 class Feature:
@@ -214,9 +213,7 @@ class XMLToPYX:
 
         names = [ name ]
 
-        for i in node.findall("alias"):
-            names.append(i.attrib["name"])
-
+        names.extend(i.attrib["name"] for i in node.findall("alias"))
         for i in names:
             c = self.commands.get(i, None)
             if c is not None:
@@ -301,7 +298,7 @@ class XMLToPYX:
             w(f"    GLenum {i}")
 
         for i in sorted(self.merged.commands):
-            typename = i + "_type"
+            typename = f"{i}_type"
             c = self.commands[i]
 
             w("")
@@ -333,8 +330,8 @@ class XMLToPYX:
             names.sort()
             names.insert(0, i)
 
-            if (i in FRAMEBUFFER_EXT_FUNCTIONS) and ((i + "EXT") not in names):
-                names.append(i + "EXT")
+            if i in FRAMEBUFFER_EXT_FUNCTIONS and f"{i}EXT" not in names:
+                names.append(f"{i}EXT")
                 print(names)
 
             names = [ i.encode("utf-8") for i in names ]

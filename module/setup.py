@@ -46,7 +46,7 @@ generate_styles.generate()
 
 # If RENPY_CC or RENPY_LD are in the environment, and CC or LD are not, use them.
 def setup_env(name):
-    renpy_name = "RENPY_" + name
+    renpy_name = f"RENPY_{name}"
     if (renpy_name in os.environ) and (name not in os.environ):
         os.environ[name] = os.environ[renpy_name]
 
@@ -85,7 +85,10 @@ include("libavformat/avformat.h", directory="ffmpeg", optional=True) or include(
 include("libavcodec/avcodec.h", directory="ffmpeg", optional=True) or include("libavcodec/avcodec.h") # type: ignore
 include("libswscale/swscale.h", directory="ffmpeg", optional=True) or include("libswscale/swscale.h") # type: ignore
 include("GL/glew.h")
-include("pygame_sdl2/pygame_sdl2.h", directory="python{}.{}".format(sys.version_info.major, sys.version_info.minor))
+include(
+    "pygame_sdl2/pygame_sdl2.h",
+    directory=f"python{sys.version_info.major}.{sys.version_info.minor}",
+)
 
 library("SDL2")
 library("png")
@@ -109,7 +112,7 @@ else:
 
 cubism = os.environ.get("CUBISM", None)
 if cubism:
-    setuplib.include_dirs.append("{}/Core/include".format(cubism))
+    setuplib.include_dirs.append(f"{cubism}/Core/include")
 
 # Modules directory.
 cython(
@@ -159,7 +162,10 @@ cython("renpy.styledata.styleclass")
 cython("renpy.styledata.stylesets")
 
 for p in generate_styles.prefixes:
-    cython("renpy.styledata.style_{}functions".format(p), pyx=setuplib.gen + "/style_{}functions.pyx".format(p))
+    cython(
+        f"renpy.styledata.style_{p}functions",
+        pyx=f"{setuplib.gen}/style_{p}functions.pyx",
+    )
 
 # renpy.display
 cython("renpy.display.matrix")

@@ -52,10 +52,7 @@ def lookup_displayable_prefix(d):
         return None
 
     fn = renpy.config.displayable_prefix.get(prefix, None)
-    if fn is None:
-        return None
-
-    return displayable(fn(arg))
+    return None if fn is None else displayable(fn(arg))
 
 
 def displayable_or_none(d, scope=None, dynamic=True): # type: (Any, dict|None, bool) -> renpy.display.core.Displayable|None
@@ -145,7 +142,7 @@ def displayable(d, scope=None): # type(d, dict|None=None) -> renpy.display.core.
     raise Exception("Not a displayable: %r" % (d,))
 
 
-def dynamic_image(d, scope=None, prefix=None, search=None): # type: (Any, dict|None, str|None, list|None) -> renpy.display.core.Displayable|None
+def dynamic_image(d, scope=None, prefix=None, search=None):    # type: (Any, dict|None, str|None, list|None) -> renpy.display.core.Displayable|None
     """
     Substitutes a scope into `d`, then returns a displayable.
 
@@ -167,9 +164,12 @@ def dynamic_image(d, scope=None, prefix=None, search=None): # type: (Any, dict|N
         if lookup_displayable_prefix(name):
             return True
 
-        if (len(d) == 1) and (renpy.config.missing_image_callback is not None):
-            if renpy.config.missing_image_callback(name):
-                return True
+        if (
+            (len(d) == 1)
+            and (renpy.config.missing_image_callback is not None)
+            and renpy.config.missing_image_callback(name)
+        ):
+            return True
 
     for i in d:
 
@@ -178,11 +178,7 @@ def dynamic_image(d, scope=None, prefix=None, search=None): # type: (Any, dict|N
 
         if (prefix is not None) and ("[prefix_" in i):
 
-            if scope:
-                scope = dict(scope)
-            else:
-                scope = { }
-
+            scope = dict(scope) if scope else { }
             for p in renpy.styledata.stylesets.prefix_search[prefix]:  # @UndefinedVariable
                 scope["prefix_"] = p
 
@@ -206,10 +202,7 @@ def dynamic_image(d, scope=None, prefix=None, search=None): # type: (Any, dict|N
 
     rv = d[-1]
 
-    if find(rv):
-        return displayable_or_none(rv, dynamic=False)
-
-    return None
+    return displayable_or_none(rv, dynamic=False) if find(rv) else None
 
 
 def predict(d):
@@ -244,11 +237,7 @@ def split_properties(properties, *prefixes):
         text_properties, button_properties = renpy.split_properties(properties, "text_", "")
     """
 
-    rv = [ ]
-
-    for _i in prefixes:
-        rv.append({})
-
+    rv = [{} for _i in prefixes]
     if not properties:
         return rv
 
@@ -260,7 +249,7 @@ def split_properties(properties, *prefixes):
                 d[k[len(prefix):]] = v
                 break
         else:
-            raise Exception("Property {} begins with an unknown prefix.".format(k))
+            raise Exception(f"Property {k} begins with an unknown prefix.")
 
     return rv
 

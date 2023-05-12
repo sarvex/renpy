@@ -94,7 +94,7 @@ trace_local = None
 
 def trace_function(frame, event, arg):
     fn = os.path.basename(frame.f_code.co_filename)
-    trace_file.write("{} {} {} {}\n".format(fn, frame.f_lineno, frame.f_code.co_name, event)) # type: ignore
+    trace_file.write(f"{fn} {frame.f_lineno} {frame.f_code.co_name} {event}\n")
     return trace_local
 
 
@@ -104,11 +104,7 @@ def enable_trace(level):
 
     trace_file = open("trace.txt", "w", buffering=1, encoding="utf-8")
 
-    if level > 1:
-        trace_local = trace_function
-    else:
-        trace_local = None
-
+    trace_local = trace_function if level > 1 else None
     sys.settrace(trace_function)
 
 
@@ -117,7 +113,7 @@ def mac_start(fn):
     os.start compatibility for mac.
     """
 
-    os.system("open " + fn) # type: ignore
+    os.system(f"open {fn}")
 
 def popen_del(self, *args, **kwargs):
     """
@@ -141,10 +137,10 @@ def bootstrap(renpy_base):
         renpy_base = str(renpy_base, FSENCODING)
 
     # If environment.txt exists, load it into the os.environ dictionary.
-    if os.path.exists(renpy_base + "/environment.txt"):
+    if os.path.exists(f"{renpy_base}/environment.txt"):
         evars = { }
-        with open(renpy_base + "/environment.txt", "r") as f:
-            code = compile(f.read(), renpy_base + "/environment.txt", 'exec')
+        with open(f"{renpy_base}/environment.txt", "r") as f:
+            code = compile(f.read(), f"{renpy_base}/environment.txt", 'exec')
             exec(code, evars)
         for k, v in evars.items():
             if k not in os.environ:
@@ -156,10 +152,10 @@ def bootstrap(renpy_base):
     if ".app" in alt_path:
         alt_path = alt_path[:alt_path.find(".app") + 4]
 
-        if os.path.exists(alt_path + "/environment.txt"):
+        if os.path.exists(f"{alt_path}/environment.txt"):
             evars = { }
-            with open(alt_path + "/environment.txt", "rb") as f:
-                code = compile(f.read(), alt_path + "/environment.txt", 'exec')
+            with open(f"{alt_path}/environment.txt", "rb") as f:
+                code = compile(f.read(), f"{alt_path}/environment.txt", 'exec')
                 exec(code, evars)
             for k, v in evars.items():
                 if k not in os.environ:
@@ -190,9 +186,8 @@ def bootstrap(renpy_base):
         sys.exit(1)
 
     # Make game/ on Android.
-    if renpy.android:
-        if not os.path.exists(basedir + "/game"):
-            os.mkdir(basedir + "/game", 0o777)
+    if renpy.android and not os.path.exists(f"{basedir}/game"):
+        os.mkdir(f"{basedir}/game", 0o777)
 
     gamedir = renpy.__main__.path_to_gamedir(basedir, name)
 
@@ -213,7 +208,7 @@ def bootstrap(renpy_base):
     # won't import.)
     try:
         import pygame_sdl2
-        if not ("pygame" in sys.modules):
+        if "pygame" not in sys.modules:
             pygame_sdl2.import_as_pygame()
     except Exception:
         print("""\
@@ -292,11 +287,10 @@ You may be using a system install of python. Please run {0}.sh,
                 if e.relaunch:
                     if hasattr(sys, "renpy_executable"):
                         subprocess.Popen([sys.renpy_executable] + sys.argv[1:]) # type: ignore
+                    elif PY2:
+                        subprocess.Popen([sys.executable, "-EO"] + sys.argv)
                     else:
-                        if PY2:
-                            subprocess.Popen([sys.executable, "-EO"] + sys.argv)
-                        else:
-                            subprocess.Popen([sys.executable] + sys.argv)
+                        subprocess.Popen([sys.executable] + sys.argv)
 
             except renpy.game.ParseErrorException:
                 pass

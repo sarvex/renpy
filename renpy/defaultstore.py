@@ -90,7 +90,7 @@ class _Config(object):
         cvars = vars(_config)
 
         if name not in cvars:
-            raise Exception('config.%s is not a known configuration variable.' % (name))
+            raise Exception(f'config.{name} is not a known configuration variable.')
 
         return cvars[name]
 
@@ -98,16 +98,15 @@ class _Config(object):
         cvars = _config.__dict__
 
         if name not in cvars and renpy.config.locked:
-            raise Exception('config.%s is not a known configuration variable.' % (name))
+            raise Exception(f'config.{name} is not a known configuration variable.')
 
         if name == "script_version":
             renpy.store._set_script_version(value) # type: ignore
 
-        if name == "developer":
-            if value == "auto":
-                renpy.config.original_developer = value
-                renpy.config.developer = renpy.config.default_developer
-                return
+        if name == "developer" and value == "auto":
+            renpy.config.original_developer = value
+            renpy.config.developer = renpy.config.default_developer
+            return
 
         cvars[name] = value
 
@@ -339,11 +338,7 @@ def At(d, *args):
 
     for i in args:
 
-        if isinstance(i, renpy.display.motion.Transform):
-            rv = i(child=rv)
-        else:
-            rv = i(rv)
-
+        rv = i(child=rv) if isinstance(i, renpy.display.motion.Transform) else i(rv)
     return rv
 
 
@@ -433,7 +428,7 @@ _predict_set = set()
 
 # A map from a screen name to an (args, kwargs) tuple. The arguments and
 # keyword arguments can be
-_predict_screen = dict()
+_predict_screen = {}
 
 # Should the default screens be shown?
 _overlay_screens = None

@@ -30,7 +30,7 @@ def prefixed_matrix(prefix):
     Returns a matrix where each entry is of the for prefix___name.
     """
 
-    return Matrix(4, 4, [ symbols(prefix + "___" + i) for i in matrix_names ])
+    return Matrix(4, 4, [symbols(f"{prefix}___{i}") for i in matrix_names])
 
 ###############################################################################
 
@@ -58,40 +58,45 @@ class Generator(object):
 
         # PYD.
         print("    @staticmethod", file=self.pyd_f)
-        print("    cdef Matrix c{}({})".format(
-            self.name,
-            ", ".join("float " + i for i in params.split())), file=self.pyd_f)
+        print(
+            f'    cdef Matrix c{self.name}({", ".join(f"float {i}" for i in params.split())})',
+            file=self.pyd_f,
+        )
 
         # PYX.
 
         print("    @staticmethod", file=self.pyx_f)
-        print("    cdef Matrix c{}({}):".format(
-            self.name,
-            ", ".join("float " + i for i in params.split())), file=self.pyx_f)
-        print("        return {}_matrix({})".format(
-            self.name, ", ".join(params.split())), file=self.pyx_f)
+        print(
+            f'    cdef Matrix c{self.name}({", ".join(f"float {i}" for i in params.split())}):',
+            file=self.pyx_f,
+        )
+        print(
+            f'        return {self.name}_matrix({", ".join(params.split())})',
+            file=self.pyx_f,
+        )
 
         print(file=self.pyx_f)
 
         print("    @staticmethod", file=self.pyx_f)
-        print("    def {}({}):".format(
-            self.name,
-            ", ".join(params.split())), file=self.pyx_f)
+        print(f'    def {self.name}({", ".join(params.split())}):', file=self.pyx_f)
 
         if self.docs:
             print('        """' + self.docs.replace("\n", "\n    ") + '"""', file=self.pyx_f)
 
-        print("        return {}_matrix({})".format(
-            self.name, ", ".join(params.split())), file=self.pyx_f)
+        print(
+            f'        return {self.name}_matrix({", ".join(params.split())})',
+            file=self.pyx_f,
+        )
 
         # PXI.
 
         print(file=self.f)
         print(file=self.f)
 
-        print("cpdef Matrix {}_matrix({}):".format(
-            self.name,
-            ", ".join("float " + i for i in params.split())), file=self.f)
+        print(
+            f'cpdef Matrix {self.name}_matrix({", ".join(f"float {i}" for i in params.split())}):',
+            file=self.f,
+        )
 
         if params.split():
             return symbols(params)
@@ -104,7 +109,7 @@ class Generator(object):
 
         value = simplify(value, rational=True)
 
-        print("    cdef float {} = {}".format(name, str(value)), file=self.f)
+        print(f"    cdef float {name} = {str(value)}", file=self.f)
 
         return symbols(name)
 
@@ -119,7 +124,7 @@ class Generator(object):
             if value == 0.0:
                 continue
 
-            print("    rv.{} =".format(name), simplify(value, rational=True), file=self.f)
+            print(f"    rv.{name} =", simplify(value, rational=True), file=self.f)
 
         print(file=self.f)
         print("    return rv", file=self.f)

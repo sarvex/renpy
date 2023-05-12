@@ -39,9 +39,20 @@ if not args.real:
 
 if args.github:
     subprocess.call([ "git", "push", "--tags" ])
-    subprocess.call([ "gh", "release", "create", version, "--notes", "See https://www.renpy.org/release/" + short_version, "-t", "Ren'Py {}".format(short_version) ])
+    subprocess.call(
+        [
+            "gh",
+            "release",
+            "create",
+            version,
+            "--notes",
+            f"See https://www.renpy.org/release/{short_version}",
+            "-t",
+            f"Ren'Py {short_version}",
+        ]
+    )
 
-    dn = "/home/tom/ab/renpy/dl/" + short_version
+    dn = f"/home/tom/ab/renpy/dl/{short_version}"
 
     for fn in os.listdir(dn):
 
@@ -71,18 +82,19 @@ if args.github:
 
 
 if args.release:
-    subprocess.check_call([ "/home/tom/ab/renpy/scripts/checksums.py", "/home/tom/ab/renpy/dl/" + short_version ])
+    subprocess.check_call(
+        [
+            "/home/tom/ab/renpy/scripts/checksums.py",
+            f"/home/tom/ab/renpy/dl/{short_version}",
+        ]
+    )
 
 if args.delete_tag:
     for i in SOURCE:
 
         os.chdir(i)
 
-        if i == SOURCE[0]:
-            tag = args.delete_tag
-        else:
-            tag = "renpy-" + args.delete_tag
-
+        tag = args.delete_tag if i == SOURCE[0] else f"renpy-{args.delete_tag}"
         subprocess.call([ "git", "tag", "-d", tag, ])
 
     sys.exit(0)
@@ -92,7 +104,7 @@ if args.push_tags:
         os.chdir(i)
 
         if subprocess.call([ "git", "push", "--tags" ]):
-            print("Tags not pushed: {}".format(os.getcwd()))
+            print(f"Tags not pushed: {os.getcwd()}")
             sys.exit(1)
 
     print("Pushed tags.")
@@ -114,26 +126,31 @@ else:
 if args.no_tag:
     tag = False
 
-links = [ i + "-" + major for i in links ]
+links = [f"{i}-{major}" for i in links]
 
 if tag:
     for i in SOURCE:
         os.chdir(i)
 
         if subprocess.call([ "git", "diff", "--quiet", "HEAD" ]):
-            print("Directory not checked in: {}".format(os.getcwd()))
+            print(f"Directory not checked in: {os.getcwd()}")
             sys.exit(1)
 
     for i in SOURCE:
 
         os.chdir(i)
 
-        if i == SOURCE[0]:
-            tag = version
-        else:
-            tag = "renpy-" + version
-
-        subprocess.check_call([ "git", "tag", "-a", tag, "-m", "Tagging Ren'Py + " + version + " release." ])
+        tag = version if i == SOURCE[0] else f"renpy-{version}"
+        subprocess.check_call(
+            [
+                "git",
+                "tag",
+                "-a",
+                tag,
+                "-m",
+                f"Tagging Ren'Py + {version} release.",
+            ]
+        )
 
 os.chdir("/home/tom/ab/renpy/dl")
 

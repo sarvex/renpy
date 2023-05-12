@@ -95,7 +95,7 @@ def _path(filename):
 
     if prefix == "backup":
         base = os.path.basename(rest.rpartition(":")[2])
-        return os.path.join(backups, base + "." + str(time.time()))
+        return os.path.join(backups, f"{base}.{str(time.time())}")
 
     if prefix == "renpy":
         return os.path.join(config.renpy_base, rest)
@@ -152,11 +152,11 @@ def _check_hash(filename, hashj):
 
         with open(filename, "rb") as f:
             while True:
-                data = f.read(1024 * 1024)
-                if not data:
-                    break
+                if data := f.read(1024 * 1024):
+                    sha.update(data)
 
-                sha.update(data)
+                else:
+                    break
 
         return sha.hexdigest() == hash
 
@@ -182,9 +182,8 @@ def download(url, filename, hash=None):
 
     filename = _path(filename)
 
-    if hash is not None:
-        if _check_hash(filename, hash):
-            return
+    if hash is not None and _check_hash(filename, hash):
+        return
 
     progress_time = time.time()
 
@@ -344,7 +343,7 @@ def remove(filename):
     if not exists(filename):
         return
 
-    backup = _path("backup:" + filename)
+    backup = _path(f"backup:{filename}")
     shutil.move(_path(filename), backup)
 
     # Now, touch everything so _cleanup doesn't get it too quickly.
@@ -454,7 +453,7 @@ def manifest(url, renpy=False, insecure=False):
         manifest = f.read()
 
     if not insecure:
-        download(url + ".sig", "temp:manifest.py.sig")
+        download(f"{url}.sig", "temp:manifest.py.sig")
 
         with open(_path("temp:manifest.py.sig"), "rb") as f:
             sig = f.read()

@@ -322,7 +322,7 @@ def clean_store(name):
     """
 
     if not name.startswith("store."):
-        name = "store." + name
+        name = f"store.{name}"
 
     clean_store_backup.restore_one(name) # type: ignore
 
@@ -330,7 +330,7 @@ def clean_store(name):
 def reset_store_changes(name):
 
     if not name.startswith("store."):
-        name = "store." + name
+        name = f"store.{name}"
 
     sd = store_dicts[name]
     sd.begin()
@@ -339,10 +339,7 @@ def reset_store_changes(name):
 
 
 def b(s):
-    if PY2:
-        return s.encode("utf-8")
-    else:
-        return s
+    return s.encode("utf-8") if PY2 else s
 
 
 class LoadedVariables(ast.NodeVisitor):
@@ -578,12 +575,9 @@ class WrapNode(ast.NodeTransformer):
         if PY2:
             return node
 
-        optional_vars = [ ]
-
-        for i in node.items:
-            if i.optional_vars is not None:
-                optional_vars.append(i.optional_vars)
-
+        optional_vars = [
+            i.optional_vars for i in node.items if i.optional_vars is not None
+        ]
         if not optional_vars:
             return node
 
@@ -768,11 +762,9 @@ def unicode_sub(m):
     body = m.group(3)
 
     if "u" not in prefix and "U" not in prefix:
-        prefix = 'u' + prefix
+        prefix = f'u{prefix}'
 
-    rv = prefix + sep + body + sep
-
-    return rv
+    return prefix + sep + body + sep
 
 
 string_re = re.compile(r'([uU]?[rR]?)("""|"|\'\'\'|\')((\\.|.)*?)\2')
@@ -924,7 +916,7 @@ def quote_eval(s):
             i += 1
             continue
 
-        raise Exception("Unknown character {} (can't happen)".format(c))
+        raise Exception(f"Unknown character {c} (can't happen)")
 
     # Since the last 2 characters are \0, those characters need to be stripped.
     return "".join(rv[:-2])
@@ -975,11 +967,7 @@ def py_compile(source, mode, filename='<none>', lineno=1, ast_node=False, cache=
             py = source.py
 
     if py is None:
-        if PY2:
-            py = 2
-        else:
-            py = 3
-
+        py = 2 if PY2 else 3
     if cache:
         key = (lineno, filename, str(source), mode, renpy.script.MAGIC)
 
@@ -1014,11 +1002,7 @@ def py_compile(source, mode, filename='<none>', lineno=1, ast_node=False, cache=
 
     try:
 
-        if mode == "hide":
-            py_mode = "exec"
-        else:
-            py_mode = mode
-
+        py_mode = "exec" if mode == "hide" else mode
         if (not PY2) or (filename in py3_files):
 
             flags = py3_compile_flags
@@ -1127,11 +1111,7 @@ def py_exec(source, hide=False, store=None):
     if store is None:
         store = store_dicts["store"]
 
-    if hide:
-        locals = { } # @ReservedAssignment
-    else:
-        locals = store # @ReservedAssignment
-
+    locals = { } if hide else store
     exec(py_compile(source, 'exec'), store, locals)
 
 

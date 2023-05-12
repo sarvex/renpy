@@ -132,12 +132,7 @@ class ParameterInfo(object):
         if args is None:
             args = [ ]
 
-        if kwargs is None:
-            kwargs = renpy.python.RevertableDict()
-        else:
-            # Prevent original kwargs changes
-            kwargs = kwargs.copy()
-
+        kwargs = renpy.python.RevertableDict() if kwargs is None else kwargs.copy()
         parameters = self.parameters
         # Handle empty parameters in a fast way
         if not parameters:
@@ -148,8 +143,8 @@ class ParameterInfo(object):
             elif kwargs and (not ignore_errors):
                 if not kwargs.pop("_ignore_extra_kwargs", False):
                     raise TypeError(
-                        "Unexpected keyword arguments: %s" %
-                        ", ".join("'%s'" % i for i in kwargs))
+                        f"""Unexpected keyword arguments: {", ".join(f"'{i}'" for i in kwargs)}"""
+                    )
 
             if self.extrapos:
                 rv[self.extrapos] = tuple(args)
@@ -189,15 +184,13 @@ class ParameterInfo(object):
 
             argsi = iter([])
 
-        # Report positional-only as keyword if we have not **kwargs
         if posonly_keyword and self.extrakw is None:
             if not ignore_errors:
                 raise TypeError(
-                    "Some positional-only arguments passed as keyword arguments: %s" %
-                    ", ".join("'%s'" % i for i in posonly_keyword))
-            else:
-                for name in posonly_keyword:
-                    kwargs.pop(name)
+                    f"""Some positional-only arguments passed as keyword arguments: {", ".join(f"'{i}'" for i in posonly_keyword)}"""
+                )
+            for name in posonly_keyword:
+                kwargs.pop(name)
 
         # Fill positional_or_keyword slots with left args
         poskw_slots = parameters[len(self.positional_only):-len(self.keyword_only) or None]
@@ -230,8 +223,8 @@ class ParameterInfo(object):
         # Report missing positional parameters
         if missed_pos and (not ignore_errors):
             raise TypeError(
-                "Missing required positional arguments: %s" %
-                ", ".join("'%s'" % i for i in missed_pos))
+                f"""Missing required positional arguments: {", ".join(f"'{i}'" for i in missed_pos)}"""
+            )
 
         if self.extrapos:
             rv[self.extrapos] = tuple(extraargs)
@@ -254,8 +247,8 @@ class ParameterInfo(object):
         # Report duplicated positional parameters
         if duplicated_names and (not ignore_errors):
             raise TypeError(
-                "Got multiple values for arguments: %s" %
-                ", ".join("'%s'" % i for i in duplicated_names))
+                f"""Got multiple values for arguments: {", ".join(f"'{i}'" for i in duplicated_names)}"""
+            )
 
         # Fill keyword-only parameters
         missed_kw = [ ]
@@ -270,8 +263,8 @@ class ParameterInfo(object):
         # Report missing keyword-only parameters
         if missed_kw and (not ignore_errors):
             raise TypeError(
-                "Missing required keyword-only arguments: %s" %
-                ", ".join("'%s'" % i for i in missed_kw))
+                f"""Missing required keyword-only arguments: {", ".join(f"'{i}'" for i in missed_kw)}"""
+            )
 
         if self.extrakw:
             rv[self.extrakw] = kwargs
@@ -279,8 +272,8 @@ class ParameterInfo(object):
         elif kwargs and (not ignore_errors):
             if not kwargs.pop("_ignore_extra_kwargs", False):
                 raise TypeError(
-                    "Unexpected keyword arguments: %s" %
-                    ", ".join("'%s'" % i for i in kwargs))
+                    f"""Unexpected keyword arguments: {", ".join(f"'{i}'" for i in kwargs)}"""
+                )
 
         return rv
 
@@ -303,21 +296,22 @@ class ArgumentInfo(renpy.object.Object):
     doublestarred_indexes = set()
 
     def after_upgrade(self, version):
-        if version < 1:
-            arguments = self.arguments
-            extrapos = self.extrapos # type: ignore
-            extrakw = self.extrakw # type: ignore
-            length = len(arguments) + bool(extrapos) + bool(extrakw)
-            if extrapos:
-                self.starred_indexes = { length - 1 }
-                arguments.append((None, extrapos))
+        if version >= 1:
+            return
+        arguments = self.arguments
+        extrapos = self.extrapos # type: ignore
+        extrakw = self.extrakw # type: ignore
+        length = len(arguments) + bool(extrapos) + bool(extrakw)
+        if extrapos:
+            self.starred_indexes = { length - 1 }
+            arguments.append((None, extrapos))
 
-            if extrakw:
-                self.doublestarred_indexes = { length - 1 }
-                arguments.append((None, extrakw))
+        if extrakw:
+            self.doublestarred_indexes = { length - 1 }
+            arguments.append((None, extrakw))
 
-            if extrapos and extrakw:
-                self.starred_indexes = { length - 2 }
+        if extrapos and extrakw:
+            self.starred_indexes = { length - 2 }
 
     def __init__(self, arguments, starred_indexes=None, doublestarred_indexes=None):
 
@@ -363,13 +357,13 @@ class ArgumentInfo(renpy.object.Object):
         for i, (keyword, expression) in enumerate(self.arguments):
 
             if i in self.starred_indexes:
-                l.append("*" + expression)
+                l.append(f"*{expression}")
 
             elif i in self.doublestarred_indexes:
-                l.append("**" + expression)
+                l.append(f"**{expression}")
 
             elif keyword is not None:
-                l.append("{}={}".format(keyword, expression))
+                l.append(f"{keyword}={expression}")
             else:
                 l.append(expression)
 
@@ -442,7 +436,7 @@ def probably_side_effect_free(expr):
     doesn't allow for a function call.
     """
 
-    return not ("(" in expr)
+    return "(" not in expr
 
 
 class PyCode(object):
@@ -476,11 +470,7 @@ class PyCode(object):
         if isinstance(source, PyExpr):
             loc = (source.filename, source.linenumber, source)
 
-        if PY2:
-            self.py = 2
-        else:
-            self.py = 3
-
+        self.py = 2 if PY2 else 3
         # The source code.
         self.source = source
 
@@ -555,11 +545,10 @@ class Scry(object):
     def next(self): # @ReservedAssignment
         if self._next is None:
             return None
-        else:
-            try:
-                return self._next.scry()
-            except Exception:
-                return None
+        try:
+            return self._next.scry()
+        except Exception:
+            return None
 
 
 class Node(object):
@@ -682,10 +671,7 @@ class Node(object):
         renpy.display.predict.screen to be called as necessary.
         """
 
-        if self.next:
-            return [ self.next ]
-        else:
-            return [ ]
+        return [ self.next ] if self.next else [ ]
 
     def scry(self):
         """
@@ -780,7 +766,7 @@ def eval_who(who, fast=None):
     try:
         return renpy.python.py_eval(who)
     except Exception:
-        raise Exception("Sayer '%s' is not defined." % who)
+        raise Exception(f"Sayer '{who}' is not defined.")
 
 
 class Say(Node):
@@ -818,10 +804,7 @@ class Say(Node):
             self.who = who.strip()
 
             # True if who is a simple enough expression we can just look it up.
-            if re.match(renpy.lexer.word_regexp + "$", self.who):
-                self.who_fast = True
-            else:
-                self.who_fast = False
+            self.who_fast = bool(re.match(f"{renpy.lexer.word_regexp}$", self.who))
         else:
             self.who = None
             self.who_fast = False
@@ -865,17 +848,13 @@ class Say(Node):
             rv.append("nointeract")
 
         if getattr(self, "identifier", None):
-            rv.append("id")
-            rv.append(getattr(self, "identifier", None))
-
+            rv.extend(("id", getattr(self, "identifier", None)))
         if self.arguments:
             rv.append(self.arguments.get_code())
 
         # This has to be at the end.
         if self.with_:
-            rv.append("with")
-            rv.append(self.with_)
-
+            rv.extend(("with", self.with_))
         return " ".join(rv)
 
     def execute(self):

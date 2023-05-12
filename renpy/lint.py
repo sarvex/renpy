@@ -84,7 +84,7 @@ added = { }
 
 
 def add(msg, *args):
-    if not msg in added:
+    if msg not in added:
         added[msg] = True
         msg = str(msg) % args
         print(msg)
@@ -133,10 +133,10 @@ def try_eval(where, expr, additional=None):
     if not m:
         return
 
-    if hasattr(renpy.store, m.group(1)):
+    if hasattr(renpy.store, m[1]):
         return
 
-    if m.group(1) in __builtins__:
+    if m[1] in __builtins__:
         return
 
     report("Could not evaluate '%s', in %s.", expr, where)
@@ -257,10 +257,7 @@ def image_exists_precise(name):
         if attrs - required:
             continue
 
-        rest = required - attrs
-
-        if rest:
-
+        if rest := required - attrs:
             try:
                 da = renpy.display.core.DisplayableArguments()
                 da.name = (im[0],) + tuple(i for i in name[1:] if i in attrs)
@@ -296,9 +293,8 @@ def image_exists(name, expression, tag, precise=True):
     if expression:
         return
 
-    if not precise:
-        if image_exists_imprecise(name):
-            return
+    if not precise and image_exists_imprecise(name):
+        return
 
     # If we're not precise, then we have to start looking for images
     # that we can possibly match.
@@ -353,16 +349,13 @@ def check_image(node):
 
     name = " ".join(node.imgname)
 
-    check_displayable('image %s' % name, renpy.display.image.images[node.imgname])
+    check_displayable(f'image {name}', renpy.display.image.images[node.imgname])
 
 
 def imspec(t):
     if len(t) == 3:
         return t[0], None, None, t[1], t[2], 0, None
-    if len(t) == 6:
-        return t[0], t[1], t[2], t[3], t[4], t[5], None
-    else:
-        return t
+    return (t[0], t[1], t[2], t[3], t[4], t[5], None) if len(t) == 6 else t
 
 
 # Lints ast.Show and ast.Scene nodes.
@@ -444,8 +437,7 @@ def quote_text(s):
 
 def text_checks(s):
 
-    msg = renpy.text.extras.check_text_tags(s)
-    if msg:
+    if msg := renpy.text.extras.check_text_tags(s):
         report("%s (in %s)", msg, quote_text(s))
 
     if "%" in s and renpy.config.old_substitutions:
@@ -606,7 +598,7 @@ def check_redefined(node, kind):
     elif kind == 'define':
         scanned = all_define_statments
 
-        if not (node.operator == "=" and node.index is None):
+        if node.operator != "=" or node.index is not None:
             return
     else:
         return
@@ -617,23 +609,13 @@ def check_redefined(node, kind):
     if store_name.startswith("store."):
         store_name = store_name[6:]
 
-    if store_name:
-        full_name = "{}.{}".format(store_name, node.varname)
-    else:
-        full_name = node.varname
-
+    full_name = f"{store_name}.{node.varname}" if store_name else node.varname
     if full_name in renpy.config.lint_ignore_redefine:
         return
 
-    original_node = scanned.get(full_name)
-    if original_node:
+    if original_node := scanned.get(full_name):
         report(
-            "{} {} already defined at {}:{}".format(
-                kind,
-                full_name,
-                original_node.filename,
-                original_node.linenumber,
-            )
+            f"{kind} {full_name} already defined at {original_node.filename}:{original_node.linenumber}"
         )
     scanned[full_name] = node
 
@@ -718,16 +700,16 @@ def check_screen(node):
 
 def check_styles():
     for full_name, s in renpy.style.styles.items(): # @UndefinedVariable
-        name = "style." + full_name[0]
+        name = f"style.{full_name[0]}"
         for i in full_name[1:]:
             name += "[{!r}]".format(i)
 
-        check_style("Style " + name, s)
+        check_style(f"Style {name}", s)
 
 
 def check_init(node):
     if not (-999 <= node.priority <= 999):
-        report("The init priority ({}) is not in the -999 to 999 range.".format(node.priority))
+        report(f"The init priority ({node.priority}) is not in the -999 to 999 range.")
 
 
 def humanize(n):
@@ -788,10 +770,9 @@ def common(n):
 
     filename = n.filename.replace("\\", "/")
 
-    if filename.startswith("common/") or filename.startswith("renpy/common/"):
-        return True
-    else:
-        return False
+    return bool(
+        filename.startswith("common/") or filename.startswith("renpy/common/")
+    )
 
 def report_character_stats(charastats):
     """
@@ -811,10 +792,15 @@ def report_character_stats(charastats):
         start = humanize_listing(chars, singular_suffix=" has ", plural_suffix=" have ")
 
         rv.append(
-            " * " + start + humanize(count) +
-            (" block " if count == 1 else " blocks ") + "of dialogue" +
-            (" each." if len(chars) > 1 else ".")
+            (
+                (
+                    f" * {start}{humanize(count)}"
+                    + (" block " if count == 1 else " blocks ")
+                )
+                + "of dialogue"
             )
+            + (" each." if len(chars) > 1 else ".")
+        )
 
     return rv
 
@@ -925,7 +911,12 @@ def check_unreachables(all_nodes):
         if next in unreachable:
             to_check.add(next)
 
-    locations = sorted(set((node.filename, node.linenumber) for node in (unreachable - weakly_reachable)))
+    locations = sorted(
+        {
+            (node.filename, node.linenumber)
+            for node in (unreachable - weakly_reachable)
+        }
+    )
 
     locadict = collections.defaultdict(list)
     for filename, linenumber in locations:
@@ -946,7 +937,7 @@ def check_orphan_translations(none_lang_identifiers, translation_identifiers):
     for id, nodes in translation_identifiers.items():
         if id not in none_lang_identifiers:
             for node in nodes:
-                faulty[node.filename].append("{} (id {})".format(node.linenumber, id))
+                faulty[node.filename].append(f"{node.linenumber} (id {id})")
 
     for filename, linenumbers in faulty.items():
         # if len(linenumbers) > 10:
@@ -1117,11 +1108,7 @@ def lint():
         if count.blocks <= 0:
             return
 
-        if language is None:
-            s = "The game"
-        else:
-            s = "The {0} translation".format(language)
-
+        s = "The game" if language is None else "The {0} translation".format(language)
         s += """ contains {0} dialogue blocks, containing {1} words
 and {2} characters, for an average of {3:.1f} words and {4:.0f}
 characters per block. """.format(

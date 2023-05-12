@@ -141,7 +141,7 @@ class CodeGenerator(object):
 
     def update_size(self):
 
-        gui_init = "gui.init({}, {})".format(self.p.width, self.p.height)
+        gui_init = f"gui.init({self.p.width}, {self.p.height})"
 
         lines = [ ]
 
@@ -167,14 +167,12 @@ class CodeGenerator(object):
 
         for l in self.lines:
 
-            m = re.match('^(\s*)define (.*?) =', l)
-
-            if m:
-                indent = m.group(1)
-                variable = m.group(2)
+            if m := re.match('^(\s*)define (.*?) =', l):
+                indent = m[1]
+                variable = m[2]
 
                 if variable in replacements:
-                    l = "{}define {} = {}".format(indent, variable, replacements[variable])
+                    l = f"{indent}define {variable} = {replacements[variable]}"
 
                 seen.add(variable)
 
@@ -190,10 +188,8 @@ class CodeGenerator(object):
             lines.append("")
 
             if d.comment:
-                for s in textwrap.wrap(d.comment):
-                    lines.append("## " + s)
-
-            lines.append("define {} = {}".format(d.name, d.value))
+                lines.extend(f"## {s}" for s in textwrap.wrap(d.comment))
+            lines.append(f"define {d.name} = {d.value}")
 
         self.lines = lines
 
@@ -228,7 +224,7 @@ class CodeGenerator(object):
         def quote(s):
             s = s.replace("\\", "\\\\")
             s = s.replace("\"", "\\\"")
-            return '"' + s + '"'
+            return f'"{s}"'
 
         replacements = {
             'config.name' : "_({})".format(quote(self.p.name)),
@@ -248,7 +244,7 @@ class CodeGenerator(object):
 
             while True:
 
-                bfn = "{}.{}.bak".format(target, backup)
+                bfn = f"{target}.{backup}.bak"
 
                 if not os.path.exists(bfn):
                     break
@@ -297,12 +293,9 @@ class CodeGenerator(object):
 
         for l in self.lines:
 
-            m = re.match(r'^(\s*## )(.*)', l.rstrip())
-
-            if m:
-
-                indent = m.group(1)
-                c = m.group(2)
+            if m := re.match(r'^(\s*## )(.*)', l.rstrip()):
+                indent = m[1]
+                c = m[2]
 
                 if comment:
                     c = c.strip()
@@ -310,7 +303,6 @@ class CodeGenerator(object):
                 comment.append(c)
 
             else:
-
                 if comment:
                     s = "## " + ' '.join(comment)
 
@@ -325,11 +317,11 @@ class CodeGenerator(object):
                     m = re.match(r'## ?([ *]*)(.*)', s)
 
                     if m is None:
-                        raise Exception("Comment translation doesn't start with '## ': {}".format(s))
+                        raise Exception(f"Comment translation doesn't start with '## ': {s}")
 
-                    prefix = m.group(1)
+                    prefix = m[1]
                     empty = ' ' * len(prefix)
-                    rest = m.group(2)
+                    rest = m[2]
 
                     len_prefix = len(indent) + len(prefix)
                     len_wrap = 80 - len_prefix
@@ -338,13 +330,9 @@ class CodeGenerator(object):
 
                     for i, s in enumerate(renpy.text.extras.textwrap(rest, len_wrap, store.gui.asian)):
 
-                        if i == 0:
-                            s = indent + prefix + s
-                        else:
-                            s = indent + empty + s
-
+                        s = indent + prefix + s if i == 0 else indent + empty + s
                         if hashpad and len(s) < 79:
-                            s = s + ' ' + "#" * (79 - len(s))
+                            s = f'{s} ' + "#" * (79 - len(s))
 
                         lines.append(s)
 
@@ -381,7 +369,7 @@ class CodeGenerator(object):
         if language is None:
             language = "None"
 
-        src = os.path.join(renpy.config.gamedir, "tl", language, name + "m")
+        src = os.path.join(renpy.config.gamedir, "tl", language, f"{name}m")
 
         if not os.path.exists(src):
             src = os.path.join(self.p.template, name)

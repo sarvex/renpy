@@ -55,10 +55,7 @@ def atl_warper(f):
 
 @atl_warper
 def pause(t):
-    if t < 1.0:
-        return 0.0
-    else:
-        return 1.0
+    return 0.0 if t < 1.0 else 1.0
 
 
 @atl_warper
@@ -74,15 +71,11 @@ def any_object(x):
 
 
 def bool_or_none(x):
-    if x is None:
-        return x
-    return bool(x)
+    return x if x is None else bool(x)
 
 
 def float_or_none(x):
-    if x is None:
-        return x
-    return float(x)
+    return x if x is None else float(x)
 
 
 def matrix(x):
@@ -112,27 +105,19 @@ def correct_type(v, b, ty):
     """
 
     if ty is position:
-        if v is None:
-            return None
-        else:
-            return type(b)(v)
+        return None if v is None else type(b)(v)
     else:
         return ty(v)
 
 
-def interpolate(t, a, b, type): # @ReservedAssignment
+def interpolate(t, a, b, type):    # @ReservedAssignment
     """
     Linearly interpolate the arguments.
     """
 
     # Deal with booleans, nones, etc.
     if b is None or isinstance(b, (bool, basestring, renpy.display.matrix.Matrix, renpy.display.transform.Camera)):
-        if t >= 1.0:
-            return b
-        else:
-            return a
-
-    # Recurse into tuples.
+        return b if t >= 1.0 else a
     elif isinstance(b, tuple):
         if a is None:
             a = [ None ] * len(b)
@@ -142,14 +127,12 @@ def interpolate(t, a, b, type): # @ReservedAssignment
 
         return tuple(interpolate(t, i, j, ty) for i, j, ty in zip(a, b, type))
 
-    # If something is callable, call it and return the result.
     elif callable(b):
         a_origin = getattr(a, "origin", None)
         rv = b(a_origin, t)
         rv.origin = b
         return rv
 
-    # Interpolate everything else.
     else:
         if a is None:
             a = 0
@@ -189,28 +172,26 @@ def interpolate_spline(t, spline):
 
         rv = t_ppp * spline[0] + t_pp * spline[1] + t_p * spline[2] + t3 * spline[3]
 
+    elif t <= 0.0 or t >= 1.0:
+
+        rv = spline[0 if t <= 0.0 else -1]
+
     else:
 
-        if t <= 0.0 or t >= 1.0:
+        # Catmull-Rom (re-adjust the control points)
+        spline = ([spline[1], spline[0]]
+                +list(spline[2:-2])
+                +[spline[-1], spline[-2]])
 
-            rv = spline[0 if t <= 0.0 else -1]
+        inner_spline_count = float(len(spline) - 3)
 
-        else:
+        # determine which spline values are relevant
+        sector = int(t // (1.0 / inner_spline_count) + 1)
 
-            # Catmull-Rom (re-adjust the control points)
-            spline = ([spline[1], spline[0]]
-                    +list(spline[2:-2])
-                    +[spline[-1], spline[-2]])
+        # determine t for this sector
+        t = (t % (1.0 / inner_spline_count)) * inner_spline_count
 
-            inner_spline_count = float(len(spline) - 3)
-
-            # determine which spline values are relevant
-            sector = int(t // (1.0 / inner_spline_count) + 1)
-
-            # determine t for this sector
-            t = (t % (1.0 / inner_spline_count)) * inner_spline_count
-
-            rv = get_catmull_rom_value(t, *spline[sector - 1:sector + 3])
+        rv = get_catmull_rom_value(t, *spline[sector - 1:sector + 3])
 
     return correct_type(rv, spline[-1], position)
 
@@ -222,10 +203,22 @@ def get_catmull_rom_value(t, p_1, p0, p1, p2):
     """
     t = float(max(0.0, min(1.0, t)))
     return type(p0)(
-        (t * ((2 - t) * t - 1) * p_1
-        +(t * t * (3 * t - 5) + 2) * p0
-        +t * ((4 - 3 * t) * t + 1) * p1
-        +(t - 1) * t * t * p2) / 2)
+        (
+            (
+                (
+                    (
+                        (
+                            t * ((2 - t) * t - 1) * p_1
+                            + (t**2 * (3 * t - 5) + 2) * p0
+                        )
+                        + t * ((4 - 3 * t) * t + 1) * p1
+                    )
+                    + (t - 1) * t * t * p2
+                )
+            )
+            / 2
+        )
+    )
 
 
 # A list of atl transforms that may need to be compiled.
@@ -277,10 +270,7 @@ class Context(object):
         return renpy.python.py_eval(expr, locals=self.context)
 
     def __eq__(self, other):
-        if not isinstance(other, Context):
-            return False
-
-        return self.context == other.context
+        return self.context == other.context if isinstance(other, Context) else False
 
     def __ne__(self, other):
         return not (self == other)
@@ -295,22 +285,18 @@ class Context(object):
 
         try:
 
-            if renpy.config.at_transform_compare_full_context:
-                if self.context != other.context:
-                    return False
+            if (
+                renpy.config.at_transform_compare_full_context
+                and self.context != other.context
+            ):
+                return False
 
-            for i in variables:
-                if self.context.get(i, NotInContext) != other.context.get(i, NotInContext):
-
-                    # Ignore the arguments given to ATL Transitions, which
-                    # will change each time an interaction restarts. (See #4167.)
-                    if i in ("new_widget", "old_widget"):
-                        continue
-
-                    return False
-
-            return True
-
+            return not any(
+                self.context.get(i, NotInContext)
+                != other.context.get(i, NotInContext)
+                and i not in ("new_widget", "old_widget")
+                for i in variables
+            )
         except Exception:
             return True
 
@@ -390,11 +376,7 @@ class ATLTransformBase(renpy.object.Object):
         self.parent_transform = None
 
         # The offset between st and when this ATL block first executed.
-        if renpy.config.atl_start_on_show:
-            self.atl_st_offset = None
-        else:
-            self.atl_st_offset = 0
-
+        self.atl_st_offset = None if renpy.config.atl_start_on_show else 0
         if renpy.game.context().init_phase:
             compile_queue.append(self)
 
@@ -407,10 +389,7 @@ class ATLTransformBase(renpy.object.Object):
         if (self.block is not None) and (self.block._handles_event(event)):
             return True
 
-        if self.child is None:
-            return False
-
-        return self.child._handles_event(event)
+        return False if self.child is None else self.child._handles_event(event)
 
     def get_block(self):
         """
@@ -435,19 +414,19 @@ class ATLTransformBase(renpy.object.Object):
         self.atl_st_offset = None
         self.atl_state = None
 
-        if self is t:
+        if (
+            self is t
+            or not isinstance(t, ATLTransformBase)
+            or t.atl is not self.atl
+        ):
             return
-        elif not isinstance(t, ATLTransformBase):
-            return
-        elif t.atl is not self.atl:
-            return
-
         # Only take the execution state if the contexts haven't changed in
         # a way that would affect the execution of the ATL.
 
-        if t.atl.constant != GLOBAL_CONST:
-            if not self.context.variables_equal(t.context, t.atl.find_loaded_variables()):
-                return
+        if t.atl.constant != GLOBAL_CONST and not self.context.variables_equal(
+            t.context, t.atl.find_loaded_variables()
+        ):
+            return
 
         self.done = t.done
         self.block = t.block
@@ -493,7 +472,7 @@ class ATLTransformBase(renpy.object.Object):
             if name in kwargs:
                 raise Exception('Parameter %r is used as both a positional and keyword argument to a transition.' % name)
 
-            if (name == "child") or (name == "old_widget"):
+            if name in ["child", "old_widget"]:
                 child = value
 
             context[name] = value
@@ -540,7 +519,7 @@ class ATLTransformBase(renpy.object.Object):
 
         return rv
 
-    def compile(self): # @ReservedAssignment
+    def compile(self):    # @ReservedAssignment
         """
         Compiles the ATL code into a block. As necessary, updates the
         properties.
@@ -557,12 +536,11 @@ class ATLTransformBase(renpy.object.Object):
                         p,
                         ))
 
-        if constant and self.parent_transform:
-            if self.parent_transform.block:
-                self.block = self.parent_transform.block
-                self.properties = self.parent_transform.properties
-                self.parent_transform = None
-                return self.block
+        if constant and self.parent_transform and self.parent_transform.block:
+            self.block = self.parent_transform.block
+            self.properties = self.parent_transform.properties
+            self.parent_transform = None
+            return self.block
 
         old_exception_info = renpy.game.exception_info
 
@@ -613,10 +591,12 @@ class ATLTransformBase(renpy.object.Object):
             self.transform_event = "replaced"
 
         # Notice transform events.
-        if renpy.config.atl_multiple_events:
-            if self.transform_event != self.last_transform_event:
-                events.append(self.transform_event)
-                self.last_transform_event = self.transform_event
+        if (
+            renpy.config.atl_multiple_events
+            and self.transform_event != self.last_transform_event
+        ):
+            events.append(self.transform_event)
+            self.last_transform_event = self.transform_event
 
         # Propagate transform_events from children.
         if (self.child is not None) and self.child.transform_event != self.last_child_transform_event:
@@ -639,11 +619,7 @@ class ATLTransformBase(renpy.object.Object):
         if (self.atl_st_offset is None) or (st - self.atl_st_offset) < 0:
             self.atl_st_offset = st
 
-        if self.atl.animation:
-            timebase = at
-        else:
-            timebase = st - self.atl_st_offset
-
+        timebase = at if self.atl.animation else st - self.atl_st_offset
         action, arg, pause = block.execute(trans, timebase, self.atl_state, events)
 
         renpy.game.exception_info = old_exception_info
@@ -858,19 +834,16 @@ class Block(Statement):
         # The start times of various statements.
         self.times = [ ]
 
-        for i, s in enumerate(statements):
-            if isinstance(s, Time):
-                self.times.append((s.time, i + 1))
-
+        self.times.extend(
+            (s.time, i + 1)
+            for i, s in enumerate(statements)
+            if isinstance(s, Time)
+        )
         self.times.sort()
 
     def _handles_event(self, event):
 
-        for i in self.statements:
-            if i._handles_event(event):
-                return True
-
-        return False
+        return any(i._handles_event(event) for i in self.statements)
 
     def execute(self, trans, st, state, events):
 
@@ -926,14 +899,11 @@ class Block(Statement):
                 elif action == "event":
                     return action, arg, pause
 
-                # On next, advance to the next statement in the block.
                 elif action == "next":
                     index += 1
                     start = target - arg
                     child_state = None
 
-                # On repeat, either terminate the block, or go to
-                # the first statement.
                 elif action == "repeat":
 
                     count, arg = arg
@@ -946,16 +916,11 @@ class Block(Statement):
                     # Figure how many durations can occur between the
                     # start of the loop and now.
 
-                    if duration:
-                        new_repeats = int((target - loop_start) / duration)
-                    else:
-                        new_repeats = 0
-
-                    if count is not None:
-                        if repeats + new_repeats >= count:
-                            new_repeats = count - repeats
-                            loop_start += new_repeats * duration
-                            return "next", target - loop_start, None
+                    new_repeats = int((target - loop_start) / duration) if duration else 0
+                    if count is not None and repeats + new_repeats >= count:
+                        new_repeats = count - repeats
+                        loop_start += new_repeats * duration
+                        return "next", target - loop_start, None
 
                     repeats += new_repeats
                     loop_start = loop_start + new_repeats * duration
@@ -1090,22 +1055,17 @@ class RawMultipurpose(RawStatement):
             expr, withexpr = self.expressions[0]
 
             child = ctx.eval(expr)
-            if withexpr:
-                transition = ctx.eval(withexpr)
-            else:
-                transition = None
-
+            transition = ctx.eval(withexpr) if withexpr else None
             if isinstance(child, (int, float)):
                 return Interpolation(self.loc, "pause", child, [ ], None, 0, [ ])
 
             child = renpy.easy.displayable(child)
 
-            if isinstance(child, ATLTransformBase) and (child.child is None):
-                child.compile()
-                return child.get_block()
-            else:
+            if not isinstance(child, ATLTransformBase) or child.child is not None:
                 return Child(self.loc, child, transition)
 
+            child.compile()
+            return child.get_block()
         compiling(self.loc)
 
         # Otherwise, we probably have an interpolation statement.
@@ -1116,13 +1076,13 @@ class RawMultipurpose(RawStatement):
             warper = self.warper or "instant"
 
             if warper not in warpers:
-                raise Exception("ATL Warper %s is unknown at runtime." % warper)
+                raise Exception(f"ATL Warper {warper} is unknown at runtime.")
 
         properties = [ ]
 
         for name, expr in self.properties:
             if name not in PROPERTIES:
-                raise Exception("ATL Property %s is unknown at runtime." % name)
+                raise Exception(f"ATL Property {name} is unknown at runtime.")
 
             value = ctx.eval(expr)
             properties.append((name, value))
@@ -1131,7 +1091,7 @@ class RawMultipurpose(RawStatement):
 
         for name, exprs in self.splines:
             if name not in PROPERTIES:
-                raise Exception("ATL Property %s is unknown at runtime." % name)
+                raise Exception(f"ATL Property {name} is unknown at runtime.")
 
             values = [ ctx.eval(i) for i in exprs ]
 
@@ -1249,11 +1209,10 @@ class RawChild(RawStatement):
 
     def compile(self, ctx): # @ReservedAssignment
 
-        children = [ ]
-
-        for i in self.children:
-            children.append(renpy.display.motion.ATLTransform(i, context=ctx.context))
-
+        children = [
+            renpy.display.motion.ATLTransform(i, context=ctx.context)
+            for i in self.children
+        ]
         box = renpy.display.layout.MultiBox(layout='fixed')
 
         for i in children:

@@ -81,18 +81,19 @@ def dump(error):
     if not args.json_dump: # type: ignore
         return
 
-    def name_filter(name, filename): # @ReservedAssignment
+    def name_filter(name, filename):    # @ReservedAssignment
         """
         Returns true if the name is included by the name_filter, or false if it is excluded.
         """
 
         filename = filename.replace("\\", "/")
 
-        if name.startswith("_") and not args.json_dump_private: # type: ignore
-            if name.startswith("__") and name.endswith("__"):
-                pass
-            else:
-                return False
+        if (
+            name.startswith("_")
+            and not args.json_dump_private
+            and (not name.startswith("__") or not name.endswith("__"))
+        ):
+            return False
 
         if not file_exists(filename):
             return False
@@ -100,10 +101,7 @@ def dump(error):
         if filename.startswith("common/") or filename.startswith("renpy/common/"):
             return args.json_dump_common # type: ignore
 
-        if not filename.startswith("game/"):
-            return False
-
-        return True
+        return bool(filename.startswith("game/"))
 
     result = { }
 
@@ -177,10 +175,7 @@ def dump(error):
         if inspect.isfunction(o):
             return inspect.getfile(o), o.__code__.co_firstlineno
 
-        if inspect.ismethod(o):
-            return get_line(o.__func__)
-
-        return None, None
+        return get_line(o.__func__) if inspect.ismethod(o) else (None, None)
 
     code = location["callable"] = { }
 
@@ -192,7 +187,7 @@ def dump(error):
         if modname == "store":
             prefix = ""
         elif modname.startswith("store."):
-            prefix = modname[6:] + "."
+            prefix = f"{modname[6:]}."
         else:
             continue
 
@@ -247,7 +242,7 @@ def dump(error):
     filename = renpy.exports.fsdecode(args.json_dump) # type: ignore
 
     if filename != "-":
-        new = filename + ".new"
+        new = f"{filename}.new"
 
         if PY2:
             with open(new, "wb") as f:

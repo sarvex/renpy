@@ -35,11 +35,7 @@ import os
 import builtins
 import io
 
-if PY2:
-    real_open = io.open
-else:
-    real_open = builtins.open
-
+real_open = io.open if PY2 else builtins.open
 report = True
 
 
@@ -67,12 +63,15 @@ def replacement_open(*args, **kwargs):
         traceback.print_stack()
         report = True
 
-    print(datetime.datetime.now().strftime("%H:%M:%S"), "In main thread: open" + repr(args))
+    print(
+        datetime.datetime.now().strftime("%H:%M:%S"),
+        f"In main thread: open{repr(args)}",
+    )
     return rv
 
 
 def init_main_thread_open():
-    if not "RENPY_DEBUG_MAIN_THREAD_OPEN" in os.environ:
+    if "RENPY_DEBUG_MAIN_THREAD_OPEN" not in os.environ:
         return
 
     builtins.open = replacement_open

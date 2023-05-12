@@ -51,13 +51,13 @@ cl = { }
 
 
 for i, j in enumerate((lines[0] + other_classes).split()):
-    print(("cdef char BC_{} = {}".format(j, i)))
+    print(f"cdef char BC_{j} = {i}")
     cl[j] = i
 
 print("CLASSES = {")
 
 for i, j in enumerate((lines[0] + other_classes).split()):
-    print(("    \"{}\" : {},".format(j, i)))
+    print(f'    \"{j}\" : {i},')
     cl[j] = i
 
 print("}")
@@ -65,53 +65,48 @@ print("}")
 rules = [ ]
 
 for l in lines[1:]:
-    for c in l.split()[1:]:
-        rules.append(c)
-
+    rules.extend(c for c in l.split()[1:])
 print()
 print(("cdef char *break_rules = \"" + "".join(rules) + "\""))
 
 cc = [ 'XX' ] * 65536
 
 for l in open("LineBreak.txt"):
-    m = re.match(r"(\w+)\.\.(\w+);(\w\w)", l)
-    if m:
-        start = int(m.group(1), 16)
-        end = int(m.group(2), 16)
+    if m := re.match(r"(\w+)\.\.(\w+);(\w\w)", l):
+        start = int(m[1], 16)
+        end = int(m[2], 16)
 
         if start > 65535:
             continue
 
-        if end > 65535:
-            end = 65535
-
+        end = min(end, 65535)
         for i in range(start, end + 1):
-            cc[i] = m.group(3)
+            cc[i] = m[3]
 
         continue
 
-    m = re.match(r"(\w+);(\w\w)", l)
-    if m:
-        start = int(m.group(1), 16)
+    if m := re.match(r"(\w+);(\w\w)", l):
+        start = int(m[1], 16)
 
         if start > 65535:
             continue
 
-        cc[start] = m.group(2)
+        cc[start] = m[2]
         continue
 
 
 def generate(name, func):
 
-    ncc = [ ]
-
-    for i, ccl in enumerate(cc):
-        ncc.append(func(i, ccl))
-
+    ncc = [func(i, ccl) for i, ccl in enumerate(cc)]
     assert "CJ" not in ncc
     assert "AI" not in ncc
 
-    print(("cdef char *break_" + name + " = \"" + "".join("\\x%02x" % cl[i] for i in ncc) + "\""))
+    print(
+        f"cdef char *break_{name}"
+        + " = \""
+        + "".join("\\x%02x" % cl[i] for i in ncc)
+        + "\""
+    )
 
 
 def western(i, cl):
@@ -136,10 +131,7 @@ def cjk_strict(i, cl):
 
     if cl == "CJ":
         return "NS"
-    if cl == "AI":
-        return "ID"
-
-    return cl
+    return "ID" if cl == "AI" else cl
 
 
 def cjk_normal(i, cl):
@@ -149,10 +141,7 @@ def cjk_normal(i, cl):
 
     if cl == "CJ":
         return "ID"
-    if cl == "AI":
-        return "ID"
-
-    return cl
+    return "ID" if cl == "AI" else cl
 
 
 def cjk_loose(i, cl):
@@ -172,10 +161,7 @@ def cjk_loose(i, cl):
 
     if cl == "CJ":
         return "ID"
-    if cl == "AI":
-        return "ID"
-
-    return cl
+    return "ID" if cl == "AI" else cl
 
 generate("western", western)
 generate("cjk_strict", cjk_strict)

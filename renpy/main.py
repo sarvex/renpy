@@ -120,15 +120,11 @@ def run(restart):
     game.contexts = [ renpy.execution.Context(True) ]
 
     # Jump to an appropriate start label.
-    if game.script.has_label("_start"):
-        start_label = '_start'
-    else:
-        start_label = 'start'
-
+    start_label = '_start' if game.script.has_label("_start") else 'start'
     game.context().goto_label(start_label)
 
     try:
-        renpy.exports.log("--- " + time.ctime())
+        renpy.exports.log(f"--- {time.ctime()}")
         renpy.exports.log("")
     except Exception:
         pass
@@ -139,7 +135,7 @@ def run(restart):
     # We run until we get an exception.
     renpy.display.interface.enter_context()
 
-    log_clock("Running {}".format(start_label))
+    log_clock(f"Running {start_label}")
 
     renpy.execution.run_context(True)
 
@@ -267,10 +263,8 @@ def choose_variants():
           ('ontouchstart' in window) ||
             (navigator.maxTouchPoints > 0) ||
             (navigator.msMaxTouchPoints > 0)''')
-        if touch == 1:
-            # mitigate hybrids (e.g. ms surface) by restricting touch to mobile
-            if mobile:
-                renpy.config.variants.insert(0, 'touch') # type: ignore
+        if touch == 1 and mobile:
+            renpy.config.variants.insert(0, 'touch') # type: ignore
 
         # large/medium/small
         # tablet/phone
@@ -397,13 +391,13 @@ def main():
     for dir in renpy.config.searchpath: # @ReservedAssignment
         for fn in sorted(os.listdir(dir)):
             if fn.lower().endswith(".rpe"):
-                load_rpe(dir + "/" + fn)
+                load_rpe(f"{dir}/{fn}")
 
     # Generate a list of extensions for each archive handler.
     archive_extensions = [ ]
     for handler in renpy.loader.archive_handlers:
         for ext in handler.get_supported_extensions():
-            if not (ext in archive_extensions):
+            if ext not in archive_extensions:
                 archive_extensions.append(ext)
 
     # Find archives.
@@ -416,7 +410,7 @@ def main():
             base, ext = os.path.splitext(i)
 
             # Check if the archive does not have any of the extensions in archive_extensions
-            if not (ext in archive_extensions):
+            if ext not in archive_extensions:
                 continue
 
             renpy.config.archives.append(base)
@@ -475,11 +469,11 @@ def main():
             if dn is None:
                 continue
 
-            if not os.path.isfile(os.path.join(dn, fn + ".rpy")):
+            if not os.path.isfile(os.path.join(dn, f"{fn}.rpy")):
 
                 try:
-                    name = os.path.join(dn, fn + ".rpyc")
-                    os.rename(name, name + ".bak")
+                    name = os.path.join(dn, f"{fn}.rpyc")
+                    os.rename(name, f"{name}.bak")
                 except OSError:
                     # This perhaps shouldn't happen since either .rpy or .rpyc should exist
                     pass

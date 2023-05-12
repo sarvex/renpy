@@ -86,7 +86,7 @@ class DialogueTextTags(object):
                     self.text += quoted
                     continue
 
-                if tag == "p" or tag == "w":
+                if tag in ["p", "w"]:
                     if not less_pauses:
                         self.pause_start.append(len(self.text))
                         self.pause_end.append(len(self.text))
@@ -307,8 +307,8 @@ def show_display_say(who, what, who_args={}, what_args={}, window_args={},
 
         if multiple:
 
-            if renpy.display.screen.has_screen("multiple_" + screen):
-                screen = "multiple_" + screen
+            if renpy.display.screen.has_screen(f"multiple_{screen}"):
+                screen = f"multiple_{screen}"
                 kwargs["multiple"] = multiple
 
             tag = "block{}_multiple{}_{}".format(multiple[0], multiple[1], tag)
@@ -396,11 +396,7 @@ class SlowDone(object):
 
             if renpy.display.screen.has_screen("ctc"):
 
-                if self.ctc:
-                    args = [ self.ctc ]
-                else:
-                    args = [ ]
-
+                args = [ self.ctc ] if self.ctc else [ ]
                 renpy.display.screen.show_screen("ctc", *args, _transient=True, _ignore_extra_kwargs=True, **self.ctc_kwargs)
                 renpy.exports.restart_interaction()
 
@@ -563,14 +559,13 @@ def display_say(
             if last_pause:
                 what_ctc = ctc
                 ctc_kind = "last"
-            else:
-                if delay is not None:
-                    what_ctc = ctc_timedpause or ctc_pause
-                    ctc_kind = "timedpause"
-                else:
-                    what_ctc = ctc_pause
-                    ctc_kind = "pause"
+            elif delay is None:
+                what_ctc = ctc_pause
+                ctc_kind = "pause"
 
+            else:
+                what_ctc = ctc_timedpause or ctc_pause
+                ctc_kind = "timedpause"
             ctc_kwargs = {
                 "ctc_kind" : ctc_kind,
                 "ctc_last" : ctc,
@@ -578,7 +573,7 @@ def display_say(
                 "ctc_timedpause" : ctc_timedpause,
             }
 
-            if not (interact or ctc_force):
+            if not interact and not ctc_force:
                 what_ctc = None
 
             what_ctc = renpy.easy.displayable_or_none(what_ctc)
@@ -587,10 +582,9 @@ def display_say(
                 what_ctc = what_ctc._duplicate(None)
                 what_ctc._unique()
 
-            if ctc is not what_ctc:
-                if (ctc is not None) and ctc._duplicatable:
-                    ctc = ctc._duplicate(None)
-                    ctc._unique()
+            if ctc is not what_ctc and (ctc is not None) and ctc._duplicatable:
+                ctc = ctc._duplicate(None)
+                ctc._unique()
 
             if delay == 0:
                 what_ctc = None
@@ -708,14 +702,13 @@ def display_say(
     # Do the checkpoint and with None.
     if final:
 
-        if not dtt.no_wait:
-            if exception is None:
-                renpy.exports.checkpoint(True, hard=checkpoint)
-            else:
-                renpy.exports.checkpoint(exception)
-
-        else:
+        if dtt.no_wait:
             renpy.game.after_rollback = after_rollback
+
+        elif exception is None:
+            renpy.exports.checkpoint(True, hard=checkpoint)
+        else:
+            renpy.exports.checkpoint(exception)
 
         if with_none is None:
             with_none = renpy.config.implicit_with_none

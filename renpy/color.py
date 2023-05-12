@@ -203,7 +203,7 @@ class Color(tuple):
             return "#{self[0]:02x}{self[1]:02x}{self[2]:02x}".format(self=self)
 
     def __repr__(self):
-        return "<Color {}>".format(self.hexcode)
+        return f"<Color {self.hexcode}>"
 
     def __getnewargs__(self):
         return (tuple(self), )

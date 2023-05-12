@@ -63,19 +63,11 @@ class ImageGenerator(object):
     def scale_int(self, n):
         rv = int(n * self.scale)
 
-        if rv < 1:
-            rv = 1
-
-        return rv
+        return max(rv, 1)
 
     def rescale_template(self, t):
 
-        rv = [ ]
-
-        for pos, opacity in t:
-            rv.append((pos * self.scale, opacity))
-
-        return rv
+        return [(pos * self.scale, opacity) for pos, opacity in t]
 
     def generate_line(self, template):
 
@@ -135,7 +127,7 @@ class ImageGenerator(object):
             index = 1
 
             while True:
-                bfn = u"{}.{}.bak".format(fn, index)
+                bfn = f"{fn}.{index}.bak"
 
                 if not os.path.exists(bfn):
                     break
@@ -282,11 +274,7 @@ class ImageGenerator(object):
 
         line_width = self.scale_int(3)
 
-        if self.p.light:
-            opacity = 0.9
-        else:
-            opacity = 0.8
-
+        opacity = 0.9 if self.p.light else 0.8
         # Main menu.
         mm = self.make_surface(self.width, self.height)
         mm.subsurface((0, 0, width, self.height)).fill(self.boring_color.opacity(opacity))

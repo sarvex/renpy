@@ -37,7 +37,7 @@ class Editor(renpy.editor.Editor):
         elif renpy.macintosh:
             atom = os.path.join(DIR, "Atom.app", "Contents", "Resources", "app", "atom.sh")
         else:
-            atom = os.path.join(DIR, "atom-linux-" + platform.machine(), "atom")
+            atom = os.path.join(DIR, f"atom-linux-{platform.machine()}", "atom")
 
         default_dot_atom = os.path.join(DIR, "default-dot-atom")
         dot_atom = os.path.join(DIR, ".atom")
@@ -53,7 +53,7 @@ class Editor(renpy.editor.Editor):
     def open(self, filename, line=None, **kwargs):
 
         if line:
-            filename = "{}:{}".format(filename, line)
+            filename = f"{filename}:{line}"
 
         self.args.append(filename)
 

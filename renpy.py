@@ -54,7 +54,7 @@ def path_to_gamedir(basedir, name):
         prefix = game_name[0]
         game_name = game_name[1:]
 
-        if prefix == ' ' or prefix == '_':
+        if prefix in [' ', '_']:
             candidates.append(game_name)
 
     # Add default candidates.
@@ -86,10 +86,10 @@ def path_to_common(renpy_base):
         containing this file.
     """
 
-    return renpy_base + "/renpy/common"
+    return f"{renpy_base}/renpy/common"
 
 
-def path_to_saves(gamedir, save_directory=None): # type: (str, str|None) -> str
+def path_to_saves(gamedir, save_directory=None):    # type: (str, str|None) -> str
     """
     Given the path to a Ren'Py game directory, and the value of config.
     save_directory, returns absolute path to the directory where save files
@@ -175,8 +175,8 @@ def path_to_saves(gamedir, save_directory=None): # type: (str, str|None) -> str
     path = renpy.config.renpy_base
 
     while True:
-        if os.path.isdir(path + "/Ren'Py Data"):
-            return path + "/Ren'Py Data/" + save_directory
+        if os.path.isdir(f"{path}/Ren'Py Data"):
+            return f"{path}/Ren'Py Data/{save_directory}"
 
         newpath = os.path.dirname(path)
         if path == newpath:
@@ -185,18 +185,17 @@ def path_to_saves(gamedir, save_directory=None): # type: (str, str|None) -> str
 
     # Otherwise, put the saves in a platform-specific location.
     if renpy.macintosh:
-        rv = "~/Library/RenPy/" + save_directory
+        rv = f"~/Library/RenPy/{save_directory}"
         return os.path.expanduser(rv)
 
     elif renpy.windows:
         if 'APPDATA' in os.environ:
             return os.environ['APPDATA'] + "/RenPy/" + save_directory
-        else:
-            rv = "~/RenPy/" + renpy.config.save_directory # type: ignore
-            return os.path.expanduser(rv)
+        rv = f"~/RenPy/{renpy.config.save_directory}"
+        return os.path.expanduser(rv)
 
     else:
-        rv = "~/.renpy/" + save_directory
+        rv = f"~/.renpy/{save_directory}"
         return os.path.expanduser(rv)
 
 

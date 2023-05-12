@@ -72,12 +72,12 @@ def generate_gui_command():
     prefix = os.path.join(args.target, "game")
 
     if not os.path.isdir(prefix):
-        ap.error("{} does not appear to be a Ren'Py game.".format(prefix))
+        ap.error(f"{prefix} does not appear to be a Ren'Py game.")
 
     template = os.path.join(args.template, "game")
 
     if not os.path.isdir(template):
-        ap.error("{} does not appear to be a Ren'Py game.".format(template))
+        ap.error(f"{template} does not appear to be a Ren'Py game.")
 
     p = GuiParameters(
         prefix,

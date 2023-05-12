@@ -67,8 +67,6 @@ class LogFile(object):
         self.append = append
         self.developer = developer
         self.flush = flush
-        self.file = None
-
         # File-like attributes.
         self.softspace = 0
         self.newlines = None
@@ -76,8 +74,7 @@ class LogFile(object):
         # Should we emulate file's write method? We do so if this is True.
         self.raw_write = False
 
-        if renpy.ios:
-            self.file = real_stdout
+        self.file = real_stdout if renpy.ios else None
 
     def open(self): # @ReservedAssignment
 
@@ -109,15 +106,11 @@ class LogFile(object):
             if base is None:
                 return False
 
-            fn = os.path.join(base, self.name + ".txt")
+            fn = os.path.join(base, f"{self.name}.txt")
 
-            altfn = os.path.join(tempfile.gettempdir(), "renpy-" + self.name + ".txt")
+            altfn = os.path.join(tempfile.gettempdir(), f"renpy-{self.name}.txt")
 
-            if self.append:
-                mode = "a"
-            else:
-                mode = "w"
-
+            mode = "a" if self.append else "w"
             try:
                 self.file = io.open(fn, mode, encoding="utf-8")
 
@@ -158,26 +151,26 @@ class LogFile(object):
         Formats `s` with args, and writes it to the logfile.
         """
 
-        if self.open():
+        if not self.open():
+            return
+        if not isinstance(s, str):
+            s = s.decode("latin-1")
 
-            if not isinstance(s, str):
-                s = s.decode("latin-1")
+        if not self.raw_write:
+            try:
+                s = s % args
+            except Exception:
+                s = repr((s,) + args)
 
-            if not self.raw_write:
-                try:
-                    s = s % args
-                except Exception:
-                    s = repr((s,) + args)
+            s += "\n"
 
-                s += "\n"
+        self.file.write(s) # type: ignore
 
-            self.file.write(s) # type: ignore
-
-            if self.flush:
-                try:
-                    self.file.flush() # type: ignore
-                except Exception:
-                    self.flush = False
+        if self.flush:
+            try:
+                self.file.flush() # type: ignore
+            except Exception:
+                self.flush = False
 
     def exception(self):
         """

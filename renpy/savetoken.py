@@ -42,16 +42,22 @@ verifying_keys = [ ] # type: list[str]
 # True if the save files and persistent data should be upgraded.
 should_upgrade = False # type: bool
 
-def encode_line(key, a, b=None): #type (str, bytes, bytes|None) -> str
+def encode_line(key, a, b=None):    #type (str, bytes, bytes|None) -> str
     """
     This encodes a line that contains a key and up to 2 base64-encoded fields.
     It returns the line with the newline appended, as a string.
     """
 
     if b is None:
-        return key + " " + base64.b64encode(a).decode("ascii") + "\n"
+        return f"{key} " + base64.b64encode(a).decode("ascii") + "\n"
     else:
-        return key + " " + base64.b64encode(a).decode("ascii") + " " + base64.b64encode(b).decode("ascii") + "\n"
+        return (
+            f"{key} "
+            + base64.b64encode(a).decode("ascii")
+            + " "
+            + base64.b64encode(b).decode("ascii")
+            + "\n"
+        )
 
 def decode_line(line): #type (str) -> (str, bytes, bytes|None)
     """
@@ -175,11 +181,7 @@ def check_load(log, signatures):
                 f.write(encode_line("verifying-key", k))
                 verifying_keys.append(k)
 
-    if not signatures:
-        return True
-
-    # This check catches the case where the signature is not correct.
-    return verify_data(log, signatures, False)
+    return True if not signatures else verify_data(log, signatures, False)
 
 
 def check_persistent(data, signatures):
@@ -187,13 +189,7 @@ def check_persistent(data, signatures):
     This checks a persistent file to see if the token is valid.
     """
 
-    if should_upgrade:
-        return True
-
-    if verify_data(data, signatures):
-        return True
-
-    return False
+    return True if should_upgrade else bool(verify_data(data, signatures))
 
 def create_token(filename):
     """

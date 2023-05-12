@@ -33,9 +33,18 @@ def zip_rapt_symbols(destination):
     import zipfile
 
     if PY2:
-        zf = zipfile.ZipFile(destination + "/android-native-symbols.zip", "w", zipfile.ZIP_DEFLATED)
+        zf = zipfile.ZipFile(
+            f"{destination}/android-native-symbols.zip",
+            "w",
+            zipfile.ZIP_DEFLATED,
+        )
     else:
-        zf = zipfile.ZipFile(destination + "/android-native-symbols.zip", "w", zipfile.ZIP_DEFLATED, compresslevel=3)
+        zf = zipfile.ZipFile(
+            f"{destination}/android-native-symbols.zip",
+            "w",
+            zipfile.ZIP_DEFLATED,
+            compresslevel=3,
+        )
 
     for dn, dirs, files in os.walk("rapt/symbols"):
         for fn in dirs + files:
@@ -54,15 +63,14 @@ def copy_tutorial_file(src, dest):
     # True if we want to copy the line.
     copy = True
 
-    with open(src, "r") as sf, open(dest, "w") as df:
+    with (open(src, "r") as sf, open(dest, "w") as df):
         for l in sf:
             if "# tutorial-only" in l:
                 copy = False
             elif "# end-tutorial-only" in l:
                 copy = True
-            else:
-                if copy:
-                    df.write(l)
+            elif copy:
+                df.write(l)
 
 def link_directory(dirname):
     dn = os.path.join(ROOT, dirname)
@@ -70,11 +78,7 @@ def link_directory(dirname):
     if os.path.exists(dn):
         os.unlink(dn)
 
-    if PY2:
-        source = dn + "2"
-    else:
-        source = dn + "3"
-
+    source = f"{dn}2" if PY2 else f"{dn}3"
     if os.path.exists(source):
         os.symlink(source, dn)
 
@@ -110,7 +114,7 @@ def main():
     if PY2 and not sys.flags.optimize:
         raise Exception("Not running with python optimization.")
 
-    if not os.path.abspath(sys.executable).startswith(ROOT + "/lib"):
+    if not os.path.abspath(sys.executable).startswith(f"{ROOT}/lib"):
         raise Exception("Distribute must be run with the python in lib/.")
 
     # Revision updating is done early, so we can do it even if the rest
@@ -147,9 +151,9 @@ def main():
         official = socket.gethostname() == "eileen"
         nightly = args.version and "nightly" in args.version
 
-        f.write("vc_version = {}\n".format(vc_version))
-        f.write("official = {}\n".format(official))
-        f.write("nightly = {}\n".format(nightly))
+        f.write(f"vc_version = {vc_version}\n")
+        f.write(f"official = {official}\n")
+        f.write(f"nightly = {nightly}\n")
 
     if args.vc_version_only:
         return
@@ -162,7 +166,7 @@ def main():
     reload(sys.modules['renpy'])
 
     if args.append_version:
-        args.version += "-"  + renpy.version_only
+        args.version += f"-{renpy.version_only}"
 
     # Check that the versions match.
     full_version = renpy.version_only # @UndefinedVariable
@@ -176,18 +180,14 @@ def main():
     destination = os.path.join("dl", args.version)
 
     if args.variant:
-        destination += "-" + args.variant
+        destination += f"-{args.variant}"
 
     if os.path.exists(os.path.join(destination, "checksums.txt")):
         raise Exception("The checksums.txt file exists.")
 
-    print("Version {} ({})".format(args.version, full_version))
+    print(f"Version {args.version} ({full_version})")
 
-    if sys.version_info[0] >= 3:
-        renpy_sh = "./renpy3.sh"
-    else:
-        renpy_sh = "./renpy2.sh"
-
+    renpy_sh = "./renpy3.sh" if sys.version_info[0] >= 3 else "./renpy2.sh"
     # Compile all the python files.
     compileall.compile_dir("renpy/", ddir="renpy/", force=True, quiet=1)
 
@@ -263,19 +263,21 @@ def main():
 
     # Package pygame_sdl2.
     if not args.fast:
-        subprocess.check_call([
-            "pygame_sdl2/setup.py",
-            "-q",
-            "egg_info",
-            "--tag-build",
-            "-for-renpy-" + args.version,
-            "sdist",
-            "-d",
-            os.path.abspath(destination)
-            ])
+        subprocess.check_call(
+            [
+                "pygame_sdl2/setup.py",
+                "-q",
+                "egg_info",
+                "--tag-build",
+                f"-for-renpy-{args.version}",
+                "sdist",
+                "-d",
+                os.path.abspath(destination),
+            ]
+        )
 
     # Write 7z.exe.
-    sdk = "renpy-{}-sdk".format(args.version)
+    sdk = f"renpy-{args.version}-sdk"
 
     if not args.fast:
 
@@ -289,14 +291,14 @@ def main():
         if os.path.exists(sdk):
             shutil.rmtree(sdk)
 
-        subprocess.check_call([ "unzip", "-q", sdk + ".zip" ])
+        subprocess.check_call(["unzip", "-q", f"{sdk}.zip"])
 
-        if os.path.exists(sdk + ".7z"):
-            os.unlink(sdk + ".7z")
+        if os.path.exists(f"{sdk}.7z"):
+            os.unlink(f"{sdk}.7z")
 
         sys.stdout.write("Creating -sdk.7z")
 
-        p = subprocess.Popen([ "7z", "a", sdk + ".7z", sdk], stdout=subprocess.PIPE)
+        p = subprocess.Popen(["7z", "a", f"{sdk}.7z", sdk], stdout=subprocess.PIPE)
         for i, _l in enumerate(p.stdout): # type: ignore
             if i % 10 != 0:
                 continue
@@ -307,21 +309,21 @@ def main():
         if p.wait() != 0:
             raise Exception("7z failed")
 
-        with open(sdk + ".7z", "rb") as f:
+        with open(f"{sdk}.7z", "rb") as f:
             data = f.read()
 
-        with open(sdk + ".7z.exe", "wb") as f:
+        with open(f"{sdk}.7z.exe", "wb") as f:
             f.write(sfx)
             f.write(data)
 
-        os.unlink(sdk + ".7z")
+        os.unlink(f"{sdk}.7z")
         shutil.rmtree(sdk)
 
     else:
         os.chdir(destination)
 
-        if os.path.exists(sdk + ".7z.exe"):
-            os.unlink(sdk + ".7z.exe")
+        if os.path.exists(f"{sdk}.7z.exe"):
+            os.unlink(f"{sdk}.7z.exe")
 
     print()
 

@@ -41,9 +41,7 @@ class Curry(object):
 
     def __call__(self, *args, **kwargs):
 
-        merged_kwargs = dict(self.kwargs)
-        merged_kwargs.update(kwargs)
-
+        merged_kwargs = dict(self.kwargs) | kwargs
         return self.callable(*(self.args + args), **merged_kwargs)
 
     def __repr__(self):

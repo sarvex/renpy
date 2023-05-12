@@ -65,7 +65,7 @@ def print_garbage(gen):
     """
 
     print()
-    print("Garbage after collecting generation {}:".format(gen))
+    print(f"Garbage after collecting generation {gen}:")
 
     for i in gc.garbage:
         prefix = ""
@@ -76,7 +76,7 @@ def print_garbage(gen):
             prefix = "cell: "
 
         try:
-            suffix = " (" + inspect.getfile(i) + ")"
+            suffix = f" ({inspect.getfile(i)})"
         except Exception:
             pass
 
@@ -112,13 +112,13 @@ def cycle_finder(o, name):
             if len(o) <= 80:
                 o_repr = repr(o).encode("utf-8")
             else:
-                o_repr = repr(o[:80] + "...").encode("utf-8")
+                o_repr = repr(f"{o[:80]}...").encode("utf-8")
 
         elif isinstance(o, (tuple, list)):
-            o_repr = "<" + o.__class__.__name__ + ">"
+            o_repr = f"<{o.__class__.__name__}>"
 
         elif isinstance(o, dict):
-            o_repr = "<" + o.__class__.__name__ + ">"
+            o_repr = f"<{o.__class__.__name__}>"
 
         elif isinstance(o, types.MethodType):
             if PY2:
@@ -143,7 +143,7 @@ def cycle_finder(o, name):
                 visit(ido, v, "{0}[{1!r}]".format(path, k))
 
         elif isinstance(o, types.MethodType):
-            visit(ido, o.__self__, path + ".im_self")
+            visit(ido, o.__self__, f"{path}.im_self")
 
         else:
 
@@ -163,9 +163,9 @@ def cycle_finder(o, name):
             state = get(2, { })
             if isinstance(state, dict):
                 for k, v in state.items():
-                    visit(ido, v, path + "." + k)
+                    visit(ido, v, f"{path}.{k}")
             else:
-                visit(ido, state, path + ".__getstate__()")
+                visit(ido, state, f"{path}.__getstate__()")
 
             for i, oo in enumerate(get(3, [])): # type: ignore
                 visit(ido, oo, "{0}[{1}]".format(path, i))
@@ -182,8 +182,8 @@ def cycle_finder(o, name):
     visit(None, o, name)
 
     while True:
-        left = set(i[0] for i in edges)
-        right = set(i[1] for i in edges)
+        left = {i[0] for i in edges}
+        right = {i[1] for i in edges}
 
         leaves = right - left
         roots = left - right
@@ -191,7 +191,7 @@ def cycle_finder(o, name):
         if (not leaves) and (not roots):
             break
 
-        edges = set(i for i in edges if (i[1] not in leaves) if (i[0] not in roots))
+        edges = {i for i in edges if (i[1] not in leaves) if (i[0] not in roots)}
 
     while edges:
         print()
@@ -303,7 +303,7 @@ def profile_memory_common(packages=[ "renpy", "store" ], skip_constants=False):
             continue
 
         for name, o in mod.__dict__.items():
-            name = mod_name + "." + name
+            name = f"{mod_name}.{name}"
 
             if skip_constants and name in constant_containers:
                 continue
@@ -344,7 +344,7 @@ def profile_memory(fraction=1.0, minimum=0, skip_constants=False):
 
     write("=" * 78)
     write("")
-    write("Memory profile at " + time.ctime() + ":")
+    write(f"Memory profile at {time.ctime()}:")
     write("")
 
     usage = [ (v, k) for (k, v) in profile_memory_common(skip_constants=skip_constants)[0].items() ]
@@ -358,9 +358,8 @@ def profile_memory(fraction=1.0, minimum=0, skip_constants=False):
 
     for size, name in usage:
 
-        if (remaining - size) < total * fraction:
-            if size > minimum:
-                write("{:13,d} {}".format(size, name))
+        if (remaining - size) < total * fraction and size > minimum:
+            write("{:13,d} {}".format(size, name))
 
         remaining -= size
 
@@ -399,19 +398,13 @@ def diff_memory(update=True, skip_constants=False):
 
     write("=" * 78)
     write("")
-    write("Memory diff at " + time.ctime() + ":")
+    write(f"Memory diff at {time.ctime()}:")
     write("")
 
     usage = profile_memory_common(skip_constants=skip_constants)[0]
     total = sum(usage.values())
 
-    diff = [ ]
-
-    for k, v in usage.items():
-        diff.append((
-            v - old_usage.get(k, 0),
-            k))
-
+    diff = [(v - old_usage.get(k, 0), k) for k, v in usage.items()]
     diff.sort()
 
     for change, name in diff:
@@ -442,7 +435,7 @@ def profile_rollback():
 
     write("=" * 78)
     write("")
-    write("Rollback profile at " + time.ctime() + ":")
+    write(f"Rollback profile at {time.ctime()}:")
     write("")
 
     # Profile live memory.
@@ -461,7 +454,7 @@ def profile_rollback():
 
         for store_name, store in rb.stores.items():
             for var_name, o in store.items():
-                name = store_name + "." + var_name
+                name = f"{store_name}.{var_name}"
                 id_o = id(o)
 
                 if (id_o not in seen) and (id_o not in new_seen):
@@ -479,9 +472,12 @@ def profile_rollback():
 
             roots.append((name, roll))
 
-        roots.append(("<scene lists>", rb.context.scene_lists))
-        roots.append(("<context>", rb.context))
-
+        roots.extend(
+            (
+                ("<scene lists>", rb.context.scene_lists),
+                ("<context>", rb.context),
+            )
+        )
     sizes = walk_memory(roots, seen)[0]
 
     usage = [ (v, k) for (k, v) in sizes.items() ]
@@ -498,7 +494,7 @@ def profile_rollback():
             write("{:13,d} {:13,d} {}".format(size, size // len(log), name))
 
     write("")
-    write("{} Rollback objects exist.".format(len(log)))
+    write(f"{len(log)} Rollback objects exist.")
     write("")
 
 
@@ -551,7 +547,7 @@ def find_parents(cls):
                     if v is objects[-4]:
                         k = k()
                         seen.add(id(k))
-                        queue.append((k, prefix + " (key) "))
+                        queue.append((k, f"{prefix} (key) "))
 
             for i in gc.get_referrers(o):
 
@@ -565,7 +561,7 @@ def find_parents(cls):
                     continue
 
                 seen.add(id(i))
-                queue.append((i, prefix + "  "))
+                queue.append((i, f"{prefix}  "))
                 found = True
                 break
 

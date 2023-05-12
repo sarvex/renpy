@@ -136,8 +136,7 @@ def safe_deepcopy(o):
 
     rv = copy.deepcopy(o)
 
-    if not (o == rv):
-
+    if o != rv:
         if renpy.config.developer:
             raise Exception("To be persisted, %r must support equality comparison." % o)
         else:
@@ -178,7 +177,7 @@ def find_changes():
         old = backup.get(f, None)
         new = pvars.get(f, None)
 
-        if not (new == old):
+        if new != old:
 
             persistent._changed[f] = now # type: ignore
             backup[f] = safe_deepcopy(new)
@@ -487,17 +486,17 @@ class _MultiPersistent(object):
     def save(self):
         try:
             fn = self._filename
-            with open(fn + ".new", "wb") as f:
+            with open(f"{fn}.new", "wb") as f:
                 dump(self, f)
         except OSError as e:
             if renpy.config.developer:
                 raise e
         else:
             try:
-                os.rename(fn + ".new", fn)
+                os.rename(f"{fn}.new", fn)
             except Exception:
                 os.unlink(fn)
-                os.rename(fn + ".new", fn)
+                os.rename(f"{fn}.new", fn)
 
 
 def MultiPersistent(name, save_on_quit=False):
